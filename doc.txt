@@ -1,0 +1,29 @@
+This is a set of scripts that can be used to send files through a
+unidirectional gateway.
+
+It has four scripts:
+
+- The 'spooler' and 'processor' run on the one side of the gateway.
+- The 'receiver' and 'recoverer' run on the other side of the gateway.
+
+The workflow:
+
+- Copy the file to the spool directory.
+- The 'spooler' will absorb (and remove when done) the files and convert
+  them to chunks that can individually be error recovered.
+- The 'processor' will absorb (and remove when done) the chunk files and
+  send them out as UDP fragments to the other side.
+
+On the other side:
+
+- The 'receiver' will receive UDP packets from the network and store them
+  as files.  It has limits as to how it long it will wait for all the
+  fragments to arrive, before it eventually writes them out as one big file.
+- The 'recoverer' will recover the files from the previous process
+  and offer them to the user on the other side.
+
+Parametrization:
+
+- Size of chunks.
+- Size of UDP payloads.
+- Time to wait for fragments.
