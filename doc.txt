@@ -26,4 +26,27 @@ Parametrization:
 
 - Size of chunks.
 - Size of UDP payloads.
-- Time to wait for fragments.
+- Time to wait for fragments (not yet implemented).
+
+A sample config is provided.
+
+A system test environment is provided.
+
+Software requires perl to run, and within perl, the Algorithm::Hamming::Perl
+library.
+
+Structure of the files (Backus-Naur notation-ish);
+
+Process          -> Recover(Receive(Send(Encode(File))))
+
+File             <- .*
+
+EncodedFile      <- ( EncodedChunk )+ LastEncodedChunk
+
+EncodedChunk     <- Hamming(ChunkPrefix | Chunk)
+LastEncodedChunk <- Hamming(ChunkPrefix | Chunk | FileName)
+ChunkPrefix      <- FileCounter | FileSize | ChunkIndex | ChunkSize
+
+UDPPayload       <- Hamming(ChunkPrefix | FragmentIndex) | ChunkFragment
+
+...
