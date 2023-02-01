@@ -22,5 +22,7 @@ cat /tmp/repl/processor.log
 echosep
 cat /tmp/repl/receiver.log
 echosep
+cat /tmp/repl/recoverer.log
+echosep
 
 rm -rf /tmp/repl/

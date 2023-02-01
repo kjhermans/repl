@@ -21,7 +21,7 @@
           endless => 1,
         },
         {
-          executable => 'head -c 512 /dev/random | xxd > /tmp/repl/spool/foo',
+          executable => 'cp /tmp/repl/foo /tmp/repl/spool/',
           start => 8,
           endless => 1,
         },
@@ -38,6 +38,12 @@
         {
           executable => './receiver.pl /tmp/repl/recv /tmp/repl/reco 5000 ' .
                         '2>/tmp/repl/receiver.log',
+          start => 1,
+          endless => 1,
+        },
+        {
+          executable => './recoverer.pl /tmp/repl/reco /tmp/repl/out ' .
+                        '2>/tmp/repl/recoverer.log',
           start => 1,
           endless => 1,
         },

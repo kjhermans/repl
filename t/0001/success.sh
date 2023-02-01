@@ -2,4 +2,4 @@
 
 set -e
 
-diff /tmp/repl/source /tmp/repl/dest
+diff /tmp/repl/foo /tmp/repl/out/foo

@@ -13,7 +13,11 @@ use Time::HiRes qw(usleep);
 my $procdir = shift;
 my $host = shift;
 my $port = shift;
-my $udpsize = 1024;
+print STDERR "Processor\n\nProcessing from $procdir to $host:$port...\n";
+
+my $config = eval(`cat config.pl`);
+my $udpsize = $config->{udpsize} || 1024;
+print STDERR "UDP payload size $udpsize\n";
 
 my $sock = IO::Socket::INET->new(
     Proto    => 'udp',
@@ -58,24 +62,29 @@ sub processfile
 {
   my $file = shift;
   print STDERR "Processing $file\n";
-  my ($counter, $chunk, $chunksize);
+  my ($counter, $chunk, $filesize);
   my $n = 0;
   if ($file =~ /^.*\/chunk_([0-9]+)_([0-9]+)_([0-9]+)$/) {
-    ($counter, $chunk, $chunksize) = ($1, $2, $3);
+    ($counter, $chunk, $filesize) = ($1, $2, $3);
   } else {
     warn "Found file $file, which is not a chunk.";
     return 0;
   }
   my $contents = absorb_binary($file);
-  while ($contents =~ s/^(.{$udpsize})//) {
-    my $frag = $1;
-    my $prefix = pack('QQQQ', $counter, $chunk, $chunksize, $n);
+  my $chunksize = length($contents);
+print STDERR "CONTENTS=" . length($contents) . "\n";
+  while (length($contents) > $udpsize) {
+    my $frag = substr($contents, 0, $udpsize);
+    $contents = substr($contents, $udpsize);
+    my $prefix = pack('QQQQQ', $counter, $filesize, $chunk, $chunksize, $n);
+print STDERR "Sending frag of size ".length($frag)." offset=$n\n";
     $sock->send(hamming($prefix) . $frag);
     ++$n;
   }
   my $frag = $contents;
-  my $prefix = pack('QQQQ', $counter, $chunk, $chunksize, $n);
+  my $prefix = pack('QQQQQ', $counter, $filesize, $chunk, $chunksize, $n);
   $sock->send(hamming($prefix) . $frag);
+print STDERR "Sending frag of size ".length($frag)." offset=$n\n";
   system("rm -f $file");
 }
 

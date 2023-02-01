@@ -11,11 +11,16 @@ use strict;
 use Algorithm::Hamming::Perl qw(hamming);
 use Time::HiRes qw(usleep);
 
+my $counter = 1; ## Chunk counter
+
 my $spooldir = shift;
 my $procdir = shift || '/tmp/spoolerproc';
-my $counter = 1;
-my $udpsize = 1024;
-my $chunksize = $udpsize * 256;
+print STDERR "==== Spooler.\n\nSpooling from $spooldir to $procdir...\n";
+
+my $config = eval(`cat config.pl`);
+my $udpsize = $config->{udpsize} || 1024;
+my $chunksize = $config->{chunksize} || $udpsize * 256;
+print STDERR "UDP payload size $udpsize, chunksize $chunksize\n";
 
 if (`whoami` eq 'root') {
   die "Don't run this process as root please.";
@@ -32,6 +37,7 @@ while (1) {
   }
 }
 
+print STDERR "Spooler exit.\n";
 exit 0;
 
 ##---- functions -----------------------------------------------------------##
@@ -59,18 +65,34 @@ sub spoolfile
 {
   my $chunk = 0;
   my $file = shift;
-  print STDERR "Found $file.\n";
-  open IN, "< $file" || warn "Could not open file $file.";
+  my $basename = "$file";
+  $basename =~ s/^.*\/([^\/]+)$/$1/;
+  print STDERR "Found $file; transport as $basename.\n";
+  if (!open IN, "< $file") {
+    warn "Could not open file $file.";
+    return 0;
+  }
+  my @s = stat IN;
+  my $size = $s[ 7 ];
   while (1) {
     my $buffer;
     my $n = sysread(IN, $buffer, $chunksize);
-    ## Notice that we forward zero sized reads, as a means to signal EOF.
-    my $prefix = pack('QQQ', $counter, $chunk, $n);
-    my $hammed = hamming($prefix . $buffer);
+    if ($n == 0) {
+      last;
+    }
+    if ($n < $chunksize) { ## last chunk, postfile basename
+      $buffer .= "\0" . $basename;
+    }
+    my $prefix = pack('QQQQ', $counter, $size, $chunk, $n);
+## TODO consider: last chunk chunksize may be LONGER than default chunksize
+    my $hammed = hamming(
+      $prefix .
+      $buffer
+    );
     my $out =
       sprintf("%s/chunk_%.8d_%.8d_%.8d", $procdir, $counter, $chunk, $n);
     if (!(open OUT, "> $out")) {
-      ## recovery procedure, should never happen
+      warn "Recovery: could not open output file $out.";
       my $glob = sprintf("%s/chunk_%.8d*", $procdir, $counter);
       system("rm -f $glob");
       close IN;
@@ -78,6 +100,7 @@ sub spoolfile
     }
     syswrite(OUT, $hammed);
     close(OUT);
+    print STDERR "Written chunk $out\n";
     $chunk++;
     if ($n < $chunksize) {
       last;

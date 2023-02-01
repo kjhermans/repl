@@ -8,9 +8,20 @@ use Time::HiRes qw(usleep gettimeofday);
 my $recvdir = shift || '/tmp/receiver';
 my $recoverdir = shift || '/tmp/recover';
 my $serverport = shift;
-my $udpsize = 1024;
+print STDERR "==== Receiver\n\n" .
+             "Receiving from port $serverport to $recvdir -> $recoverdir...\n";
+
+my $config = eval(`cat config.pl`);
+my $udpsize = $config->{udpsize} || 1024;
+#my $chunksize = $config->{chunksize} || $udpsize * 256;
+print STDERR "UDP payload size $udpsize\n";
+
 my $chunks = {};
 my $lastcounter = 0;
+
+if (`whoami` eq 'root') {
+  die "Don't run this process as root please.";
+}
 
 if (! -d $recvdir) {
   mkdir $recvdir;
@@ -38,9 +49,11 @@ exit 0;
 sub process
 {
   my $payload = shift;
-  my $prefix = unhamming(substr($payload, 0, (4 * 8 * 1.5)));
-  my $data = substr($payload, (4 * 8 * 1.5));
-  my ($counter, $chunk, $chunksize, $fragno) = unpack('QQQQ', $prefix);
+  my $prefix = unhamming(substr($payload, 0, (5 * 8 * 1.5)));
+  my $data = substr($payload, (5 * 8 * 1.5));
+  my ($counter, $filesize, $chunk, $chunksize, $fragno)
+    = unpack('QQQQQ', $prefix);
+print STDERR "Ctr=$counter,siz=$filesize,chk=$chunk,siz=$chunksize,frg=$fragno,pay=" . length($data) . "\n";
   if ($counter < $lastcounter) {
     return;
   }
@@ -48,7 +61,7 @@ sub process
   my $chunkrecord = $chunks->{$chunk};
   if (!defined($chunkrecord)) {
     $chunkrecord = {
-      t => gettimeofday(),
+      t => [ gettimeofday() ],
       counter => $counter,
       index => $chunk,
       size => $chunksize,
