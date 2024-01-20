@@ -1,0 +1,92 @@
+{
+  nodes => {
+    upstream => {
+      interfaces => {
+        eth0 => {
+          connection => { node => 'diode', interface => 'eth0' },
+          ip => '192.168.1.20/24',
+        },
+      },
+      tests => [
+        {
+          executable => 'arp -s 192.168.1.21 ff:ff:ff:ff:ff:ff ' .
+                        '2>>/tmp/repl/arp.log',
+          start => 1,
+          endless => 1,
+        },
+        {
+          executable => './spooler.pl /tmp/repl/spool /tmp/repl/proc ' .
+                        '2>/tmp/repl/spooler.log',
+          start => 1,
+          endless => 1,
+        },
+        {
+          executable => './processor.pl /tmp/repl/proc 192.168.1.21 5000 ' .
+                        '2>/tmp/repl/processor.log',
+          start => 2,
+          endless => 1,
+        },
+        {
+          executable => 'cp /tmp/repl/test*.data /tmp/repl/spool/',
+          start => 8,
+          endless => 1,
+        },
+      ],
+    },
+    diode => {
+      interfaces => {
+        eth0 => {
+          connection => { node => 'upstream', interface => 'eth0' }
+        },
+        eth1 => {
+          connection => { node => 'downstream', interface => 'eth0' }
+        },
+      },
+      tests => [
+        {
+          executable => './bridge -d -i diodeeth0 -i diodeeth1 -D '.
+                        '2>/tmp/repl/diode.log',
+          start => 1,
+          endless => 1,
+        }
+      ],
+    },
+    downstream => {
+      interfaces => {
+        eth0 => {
+          connection => { node => 'diode', interface => 'eth1' },
+          ip => '192.168.1.21/24',
+        },
+      },
+      tests => [
+        {
+          executable => 'arp -s 192.168.1.20 ff:ff:ff:ff:ff:ff ' .
+                        '2>>/tmp/repl/arp.log',
+          start => 1,
+          endless => 1,
+        },
+        {
+          executable => './receiver.pl /tmp/repl/recv /tmp/repl/reco 5000 ' .
+                        '2>/tmp/repl/receiver.log',
+          start => 1,
+          endless => 1,
+        },
+        {
+          executable => './recoverer.pl /tmp/repl/reco /tmp/repl/out ' .
+                        '2>/tmp/repl/recoverer.log',
+          start => 1,
+          endless => 1,
+        },
+        {
+          executable =>
+          'tcpdump -XX -l -n -i downstreameth0 > /tmp/repl/tcpdump.0.log 2>&1',
+          start => 0,
+          duration => 20,
+        },
+      ],
+    },
+  },
+  prepare => './prepare.sh',
+  success => './success.sh',
+  finish => './finish.sh',
+}

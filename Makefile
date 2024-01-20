@@ -1,10 +1,13 @@
 all:
-	echo "Do 'sudo make test'"
+	cd src && make
+
+clean:
+	cd src && make clean
 
 test:
 	cd t && make
 
-archive:
+archive: clean
 	RELEASE=$$(cat release); \
 	/bin/echo "  [TAR] ~/repl-src-$$RELEASE.tar.gz"; \
 	cd .. && \

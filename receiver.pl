@@ -58,7 +58,7 @@ print STDERR "Ctr=$counter,siz=$filesize,chk=$chunk,siz=$chunksize,frg=$fragno,p
     return;
   }
   my $file = sprintf("%s/chunk_%.8d_%.8d", $recvdir, $counter, $chunk);
-  my $chunkrecord = $chunks->{$chunk};
+  my $chunkrecord = $chunks->{$file};
   if (!defined($chunkrecord)) {
     $chunkrecord = {
       t => [ gettimeofday() ],
@@ -67,7 +67,7 @@ print STDERR "Ctr=$counter,siz=$filesize,chk=$chunk,siz=$chunksize,frg=$fragno,p
       size => $chunksize,
       frags => {},
     };
-    $chunks->{$chunk} = $chunkrecord;
+    $chunks->{$file} = $chunkrecord;
     print STDERR "Generating chunk record $counter/$chunk\n";
     system("touch $file");
   } else {

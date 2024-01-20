@@ -70,6 +70,7 @@ sub processfile
       my $replfile = "$file";
       $replfile =~ s/\/chunk_([0-9]+)_([0-9]+)$/\/decoded_$1_$2/;
       $replfile .= sprintf("_%.8d", $_filesize);
+#print STDERR "Recoverer writing file $replfile\n";
       if (open FILE, "> $replfile") {
         syswrite FILE, $chunkdata;
         close FILE;
@@ -117,11 +118,11 @@ sub processcounter
     $size += $chunkdata->{chunksize};
     if (!defined($lastchunkno)) {
       if ($chunkno != 0) {
-        return; ## not complete
+        return; ## file is not complete yet
       }
     } else {
       if ($chunkno != $lastchunkno + 1) {
-        return; ## not complete
+        return; ## file is not complete yet
       }
     }
     $lastchunkno = $chunkno;
@@ -139,7 +140,6 @@ sub spinout
       $filenamesize,
       $lastchunkno) = @_;
 
-print STDERR "SPINOUT $truesize $lastchunkno\n";
   my $outfile = sprintf("%s/final_$counter", $indir, $counter);
   my $filename;
   if (!open(OUT, "> $outfile")) {
@@ -147,12 +147,10 @@ print STDERR "SPINOUT $truesize $lastchunkno\n";
     return;
   }
   for (my $i=0; $i < $lastchunkno+1; $i++) {
-print STDERR "CHUNK $i\n";
     my $chunk = sprintf("%.8", $i);
     my $file =
       sprintf("%s/decoded_%.8d_%.8d_%.8d", $indir, $counter, $i, $truesize);
     if (open(FILE, "< $file")) {
-print STDERR "OGOGOGO TO HERE.\n";
       my @s = stat FILE;
       my $buffer;
       my $n = sysread(FILE, $buffer, $s[ 7 ]);
@@ -168,12 +166,11 @@ print STDERR "OGOGOGO TO HERE.\n";
       warn "Could not open $file for final spinout";
     }
   }
-print STDERR "GOT TO HERE.\n";
   close(OUT);
   system("mv $outfile $outdir/$filename");
-print STDERR "FILENAME = $filename\n";
-system("ls -l $outdir/");
-system("hexdump -C $outdir/$filename");
+  print STDERR "Writing $filename\n";
+#system("ls -l $outdir/");
+#system("hexdump -C $outdir/$filename");
   my $glob = sprintf("%s/decoded_%.8d_*", $indir, $counter);
   system("rm -f $glob");
 }
